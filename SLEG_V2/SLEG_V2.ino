@@ -29,6 +29,11 @@ void setup() {
 void loop() {
   readBluetooth();
   setCurrSpeed();
+  byte dirL = 0;
+  int speedL = 0;
+  MotordriverDual(currLeftSideSpeed, &dirL, &speedL);
+  // digitalWrite();
+  // analogWrite();
 #ifdef DEBUG_MODE
   Serial.println("CurrentSpeed: " + (String)currSpeed);
   Serial.println("Left   Speed: " + (String)currLeftSideSpeed);
@@ -37,12 +42,12 @@ void loop() {
 }
 //basierend auf der geschwindigkeit und der lenkung derehen sich links und recht unterschiedlich
 void setCurrSpeed() {
-  double x = sin(radians(btAngle) + PI / 2) * btStrenght;
-  double y = cos(radians(btAngle) + PI / 2) * btStrenght;
-  currSpeed = (int)map(y, -1, 1, -MAX_SPEED, MAX_SPEED);
+  double x = sin(radians(btAngle)) * btStrenght;           //-100, 100
+  double y = cos(radians(btAngle)) * btStrenght;           //-100, 100
+  currSpeed = constrain(y * 2.55, -MAX_SPEED, MAX_SPEED);  //(int)map(y, -1, 1, -MAX_SPEED, MAX_SPEED);
 
-  currLeftSideSpeed = currSpeed - (int)constrain(map(x, -1, 0, currSpeed, 0), 0, currSpeed);
-  currRightSideSpeed = currSpeed - (int)constrain(map(x, 0, 1, currSpeed, 0), 0, currSpeed);
+  currLeftSideSpeed = (int)constrain(map(x, -100, 100, MAX_SPEED, 0), -MAX_SPEED, MAX_SPEED);   //x * currSpeed;//currSpeed - (int)constrain(map(x, -1, 0, currSpeed, 0), 0, currSpeed);
+  currRightSideSpeed = (int)constrain(map(x, 100, -100, MAX_SPEED, 0), MAX_SPEED, -MAX_SPEED);  //x * currSpeed; //currSpeed - (int)constrain(map(x, 0, 1, currSpeed, 0), 0, currSpeed);
 }
 void readBluetooth() {
   /*

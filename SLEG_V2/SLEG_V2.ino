@@ -2,9 +2,14 @@
 
 #define DEBUG_MODE
 
+#define MOTOR_DIR_L_PIN 7
+#define MOTOR_SPEED_L_PIN 6
+#define MOTOR_SPEED_R_PIN 5
+#define MOTOR_DIR_R_PIN 4
+
 #define DEAD_ZONE 30
 #define MAX_SPEED 255
-
+#define TURN_SPEED 3  //mult factor for turning
 
 
 //TXD = 8 | RXD = 9
@@ -25,15 +30,25 @@ void setup() {
   Serial.println("Los geht's");
   bluetoothSerial.begin(9600);  //38400
 }
-
-void loop() {
-  readBluetooth();
-  setCurrSpeed();
+void setLeftSpeed() {
   byte dirL = 0;
   int speedL = 0;
   MotordriverDual(currLeftSideSpeed, &dirL, &speedL);
-  // digitalWrite();
-  // analogWrite();
+  digitalWrite(MOTOR_DIR_L_PIN, dirL);
+  analogWrite(MOTOR_SPEED_L_PIN, speedL);
+}
+void setRightSpeed() {
+  byte dirR = 0;
+  int speedR = 0;
+  MotordriverDual(currRightSideSpeed, &dirR, &speedR);
+  digitalWrite(MOTOR_DIR_R_PIN, dirR);
+  analogWrite(MOTOR_SPEED_R_PIN, speedR);
+}
+void loop() {
+  readBluetooth();
+  setCurrSpeed();
+  setLeftSpeed();
+  // setRightSpeed();
 #ifdef DEBUG_MODE
   Serial.println("CurrentSpeed: " + (String)currSpeed);
   Serial.println("Left   Speed: " + (String)currLeftSideSpeed);
@@ -42,12 +57,27 @@ void loop() {
 }
 //basierend auf der geschwindigkeit und der lenkung derehen sich links und recht unterschiedlich
 void setCurrSpeed() {
-  double x = sin(radians(btAngle)) * btStrenght;           //-100, 100
-  double y = cos(radians(btAngle)) * btStrenght;           //-100, 100
-  currSpeed = constrain(y * 2.55, -MAX_SPEED, MAX_SPEED);  //(int)map(y, -1, 1, -MAX_SPEED, MAX_SPEED);
+  int x = sin(radians(btAngle)) * btStrenght;  //-100, 100
+  int y = cos(radians(btAngle)) * btStrenght;  //-100, 100
+  int forward = y >= 0 ? 1 : -1;
+  currSpeed = round(y * 1.275);  //-128 ... 128
+  currLeftSideSpeed = constrain(currSpeed + x * forward, -MAX_SPEED, MAX_SPEED);
+  currRightSideSpeed = constrain(currSpeed - x * forward, -MAX_SPEED, MAX_SPEED);
+  // if (btAngle > 0 && btAngle < 180) {
+  //   Serial.println("TOP");
+  //   float diff = (90 - btAngle) * TURN_SPEED;
+  //   //there are different cases: I and II
 
-  currLeftSideSpeed = (int)constrain(map(x, -100, 100, MAX_SPEED, 0), -MAX_SPEED, MAX_SPEED);   //x * currSpeed;//currSpeed - (int)constrain(map(x, -1, 0, currSpeed, 0), 0, currSpeed);
-  currRightSideSpeed = (int)constrain(map(x, 100, -100, MAX_SPEED, 0), MAX_SPEED, -MAX_SPEED);  //x * currSpeed; //currSpeed - (int)constrain(map(x, 0, 1, currSpeed, 0), 0, currSpeed);
+  // } else if (btAngle >= 180 && btAngle < 360) {
+  //   Serial.println("BOTTOM");
+  //   float diff = (270 - btAngle) * TURN_SPEED;
+
+  // }
+
+  // currSpeed = constrain(y * 2.55, -MAX_SPEED, MAX_SPEED);  //(int)map(y, -1, 1, -MAX_SPEED, MAX_SPEED);
+
+  // currLeftSideSpeed = (int)constrain(map(x, -100, 100, MAX_SPEED, 0), -MAX_SPEED, MAX_SPEED);   //x * currSpeed;//currSpeed - (int)constrain(map(x, -1, 0, currSpeed, 0), 0, currSpeed);
+  // currRightSideSpeed = (int)constrain(map(x, 100, -100, MAX_SPEED, 0), MAX_SPEED, -MAX_SPEED);  //x * currSpeed; //currSpeed - (int)constrain(map(x, 0, 1, currSpeed, 0), 0, currSpeed);
 }
 void readBluetooth() {
   /*

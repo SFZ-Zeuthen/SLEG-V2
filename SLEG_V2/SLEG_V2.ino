@@ -1,6 +1,6 @@
 #include <SoftwareSerial.h>
 
-#define DEBUG_MODE
+// #define DEBUG_MODE
 
 #define MOTOR_DIR_L_PIN 7
 #define MOTOR_SPEED_L_PIN 6
@@ -9,7 +9,7 @@
 
 #define DEAD_ZONE 30
 #define MAX_SPEED 255
-#define TURN_SPEED 3  //mult factor for turning
+#define TURN_SPEED 2  //mult factor for turning
 
 
 //TXD = 8 | RXD = 9
@@ -30,20 +30,6 @@ void setup() {
   Serial.println("Los geht's");
   bluetoothSerial.begin(9600);  //38400
 }
-void setLeftSpeed() {
-  byte dirL = 0;
-  int speedL = 0;
-  MotordriverDual(currLeftSideSpeed, &dirL, &speedL);
-  digitalWrite(MOTOR_DIR_L_PIN, dirL);
-  analogWrite(MOTOR_SPEED_L_PIN, speedL);
-}
-void setRightSpeed() {
-  byte dirR = 0;
-  int speedR = 0;
-  MotordriverDual(currRightSideSpeed, &dirR, &speedR);
-  digitalWrite(MOTOR_DIR_R_PIN, dirR);
-  analogWrite(MOTOR_SPEED_R_PIN, speedR);
-}
 void loop() {
   readBluetooth();
   setCurrSpeed();
@@ -57,12 +43,13 @@ void loop() {
 }
 //basierend auf der geschwindigkeit und der lenkung derehen sich links und recht unterschiedlich
 void setCurrSpeed() {
-  int x = sin(radians(btAngle)) * btStrenght;  //-100, 100
-  int y = cos(radians(btAngle)) * btStrenght;  //-100, 100
-  int forward = y >= 0 ? 1 : -1;
+  int x = cos(radians(btAngle)) * btStrenght;  //-100, 100
+  int y = sin(radians(btAngle)) * btStrenght;  //-100, 100
+  int forward = y >= 0 ? 1 : 1;
   currSpeed = round(y * 1.275);  //-128 ... 128
-  currLeftSideSpeed = constrain(currSpeed + x * forward, -MAX_SPEED, MAX_SPEED);
-  currRightSideSpeed = constrain(currSpeed - x * forward, -MAX_SPEED, MAX_SPEED);
+  currLeftSideSpeed = constrain(currSpeed - (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
+  currRightSideSpeed = constrain(currSpeed + (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
+  // Serial.println(currSpeed);
   // if (btAngle > 0 && btAngle < 180) {
   //   Serial.println("TOP");
   //   float diff = (90 - btAngle) * TURN_SPEED;
@@ -114,6 +101,22 @@ void readBluetooth() {
     bluetoothInput = "";
   }
 }
+void setLeftSpeed() {
+  byte dirL = 0;
+  int speedL = 0;
+  MotordriverDual(currSpeed, &dirL, &speedL);
+  digitalWrite(MOTOR_DIR_L_PIN, dirL);
+  analogWrite(MOTOR_SPEED_L_PIN, speedL);
+}
+void setRightSpeed() {
+  byte dirR = 0;
+  int speedR = 0;
+  MotordriverDual(currSpeed, &dirR, &speedR);
+  digitalWrite(MOTOR_DIR_R_PIN, dirR);
+  analogWrite(MOTOR_SPEED_R_PIN, speedR);
+
+  Serial.println(speedR);
+}
 void MotordriverDual(int speed, byte *realDir, int *realValue) {
   if (realDir == nullptr || realValue == nullptr) {
     return;
@@ -131,7 +134,6 @@ void MotordriverDual(int speed, byte *realDir, int *realValue) {
     *realValue = speed + DEAD_ZONE;
   } else {
     *realDir = HIGH;
-    //anstatt "- abs(speed)" rechne ich "+" weil "-" und "+" = "-"
     *realValue = 255 - DEAD_ZONE + speed;
   }
   // *realValue = constrain(realValue, 0, 255);

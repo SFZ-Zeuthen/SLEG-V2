@@ -12,6 +12,23 @@ IN1A PWM_LEFT  yellow | pin 5                         |                SBY
 DIR LOW Forward
 DIR HIGH Backwards
 */
+
+//How to use Motors: (TEST)
+// // motor A (left) forward
+// digitalWrite(MOTOR_DIR_L_PIN, LOW);
+// analogWrite(MOTOR_SPEED_L_PIN, 60);
+// // motor B (right) forward
+// digitalWrite(MOTOR_DIR_R_PIN, LOW);
+// analogWrite(MOTOR_SPEED_R_PIN, 60);
+// delay(5000);
+// // motor A (left) backwards
+// digitalWrite(MOTOR_DIR_L_PIN, HIGH);
+// analogWrite(MOTOR_SPEED_L_PIN, 195);
+// // motor B (right) backwards
+// digitalWrite(MOTOR_DIR_R_PIN, HIGH);
+// analogWrite(MOTOR_SPEED_R_PIN, 195);
+// delay(5000);
+
 #include <SoftwareSerial.h>
 
 // #define DEBUG_MODE
@@ -22,6 +39,7 @@ DIR HIGH Backwards
 #define MOTOR_DIR_R_PIN 4
 
 #define DEAD_ZONE 30
+#define SPEED 100
 #define MAX_SPEED 255
 #define TURN_SPEED 2  //mult factor for turning
 
@@ -48,29 +66,14 @@ void setup() {
   pinMode(MOTOR_SPEED_L_PIN, OUTPUT);
   pinMode(MOTOR_SPEED_R_PIN, OUTPUT);
 }
+
 void loop() {
-  //TEST
-  // motor A (left) forward
-  digitalWrite(MOTOR_DIR_L_PIN, LOW);
-  analogWrite(MOTOR_SPEED_L_PIN, 60);
-  // motor B (right) forward
-  digitalWrite(MOTOR_DIR_R_PIN, LOW);
-  analogWrite(MOTOR_SPEED_R_PIN, 60);
-  delay(5000);
-  // motor A (left) backwards
-  digitalWrite(MOTOR_DIR_L_PIN, HIGH);
-  analogWrite(MOTOR_SPEED_L_PIN, 195);
-  // motor B (right) backwards
-  digitalWrite(MOTOR_DIR_R_PIN, HIGH);
-  analogWrite(MOTOR_SPEED_R_PIN, 195);
-  delay(5000);
-  // end of TEST
-  //readBluetooth();
-  //setCurrSpeed();
-  //setLeftSpeed();
-  //setRightSpeed();
-  // setRightSpeed();
-#ifdef DEBUG_MODE
+  readBluetooth();
+  setCurrSpeed();
+  setLeftSpeed();
+  setRightSpeed();
+
+   #ifdef DEBUG_MODE
   Serial.println("CurrentSpeed: " + (String)currSpeed);
   Serial.println("Left   Speed: " + (String)currLeftSideSpeed);
   Serial.println("Right  Speed: " + (String)currRightSideSpeed);
@@ -81,7 +84,7 @@ void setCurrSpeed() {
   int x = cos(radians(btAngle)) * btStrenght;  //-100, 100
   int y = sin(radians(btAngle)) * btStrenght;  //-100, 100
   // int forward = y >= 0 ? 1 : 1;
-  currSpeed = round(y * 2.55);  //-128 ... 128
+  currSpeed = round(y * SPEED / 100);  //-128 ... 128
   Serial.println(currSpeed);
   // currLeftSideSpeed = constrain(currSpeed - (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
   // currRightSideSpeed = constrain(currSpeed + (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
@@ -111,9 +114,9 @@ void readBluetooth() {
   */
   if (bluetoothSerial.available()) {
     String bluetoothInput = bluetoothSerial.readStringUntil('#');
-#ifdef DEBUG_MODE
-    Serial.println("Bluetooth input:\t" + bluetoothInput);
-#endif
+  // #ifdef DEBUG_MODE
+  //     Serial.println("Bluetooth input:\t" + bluetoothInput);
+  // #endif
     if (bluetoothInput.length() != 7) {
       return;
     }
@@ -128,39 +131,30 @@ void readBluetooth() {
       btStrenght = strength.toInt();
     if (isDigit(button))
       btButton = button.toInt();
-#ifdef DEBUG_MODE
-    Serial.println("Angle\t\t\t" + (String)btAngle);
-    Serial.println("Strength\t\t" + (String)btStrenght);
-    Serial.println("Button\t\t\t" + (String)btButton);
-#endif
+  // #ifdef DEBUG_MODE
+  //     Serial.println("Angle\t\t\t" + (String)btAngle);
+  //     Serial.println("Strength\t\t" + (String)btStrenght);
+  //     Serial.println("Button\t\t\t" + (String)btButton);
+  // #endif
     bluetoothSerial.flush();
     bluetoothInput = "";
   }
 }
 void setLeftSpeed() {
-  //LOW = RÜCKWERTS
-  //HIGH =
-  //GRAU(ROT) = LINKS VORNE
-  //PINK(SCHWARZ) = LINKS VORNE
-
-  //RECHTS HIGH = RÜCKWERTS
-  //RECHTS LOW = VORWÄRTS
-  byte dirL = 1;
-  int speedL = 126;
-  // MotordriverDual(currSpeed, &dirL, &speedL);
-  // digitalWrite(MOTOR_DIR_R_PIN, dirL);
-  // analogWrite(MOTOR_SPEED_R_PIN, speedL);
+  byte dirL = 0;
+  int speedL = 0;
+  MotordriverDual(currSpeed, &dirL, &speedL);
   digitalWrite(MOTOR_DIR_L_PIN, dirL);
   analogWrite(MOTOR_SPEED_L_PIN, speedL);
 }
 void setRightSpeed() {
   byte dirR = 0;
-  int speedR = 128;
+  int speedR = 0;
   MotordriverDual(currSpeed, &dirR, &speedR);
   digitalWrite(MOTOR_DIR_R_PIN, dirR);
   analogWrite(MOTOR_SPEED_R_PIN, speedR);
 
-  Serial.println(speedR);
+  // Serial.println(speedR);
 }
 void MotordriverDual(int speed, byte *realDir, int *realValue) {
   if (realDir == nullptr || realValue == nullptr) {

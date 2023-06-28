@@ -40,6 +40,7 @@ DIR HIGH Backwards
 
 #define DEAD_ZONE 30
 #define SPEED 100
+#define TURN_SENSITIVITY 0.1
 #define MAX_SPEED 255
 #define TURN_SPEED 2  //mult factor for turning
 
@@ -73,7 +74,7 @@ void loop() {
   setLeftSpeed();
   setRightSpeed();
 
-   #ifdef DEBUG_MODE
+#ifdef DEBUG_MODE
   Serial.println("CurrentSpeed: " + (String)currSpeed);
   Serial.println("Left   Speed: " + (String)currLeftSideSpeed);
   Serial.println("Right  Speed: " + (String)currRightSideSpeed);
@@ -81,11 +82,25 @@ void loop() {
 }
 //basierend auf der geschwindigkeit und der lenkung derehen sich links und recht unterschiedlich
 void setCurrSpeed() {
-  int x = cos(radians(btAngle)) * btStrenght;  //-100, 100
-  int y = sin(radians(btAngle)) * btStrenght;  //-100, 100
+  int x = cos(radians(btAngle)) * btStrenght * TURN_SENSITIVITY;  //-100, 100
+  int y = sin(radians(btAngle)) * btStrenght;                     //-100, 100
   // int forward = y >= 0 ? 1 : 1;
   currSpeed = round(y * SPEED / 100);  //-128 ... 128
-  Serial.println(currSpeed);
+
+  if (btAngle <= 90) {
+    currLeftSideSpeed = currSpeed;
+    currRightSideSpeed = currSpeed - (x * SPEED / 100);
+  } else if (btAngle <= 180) {
+    currRightSideSpeed = currSpeed;  //cos
+    currLeftSideSpeed = currSpeed + (x * SPEED / 100);
+  } else if (btAngle <= 270) {
+    currLeftSideSpeed = currSpeed;
+    currRightSideSpeed = currSpeed + (x * SPEED / 100);
+  } else {
+    currLeftSideSpeed = currSpeed;
+    currRightSideSpeed = currSpeed - (x * SPEED / 100);
+  }
+  Serial.println((String)currLeftSideSpeed + "\t\t" + (String)currRightSideSpeed);
   // currLeftSideSpeed = constrain(currSpeed - (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
   // currRightSideSpeed = constrain(currSpeed + (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
   // Serial.println(currSpeed);
@@ -114,9 +129,9 @@ void readBluetooth() {
   */
   if (bluetoothSerial.available()) {
     String bluetoothInput = bluetoothSerial.readStringUntil('#');
-  // #ifdef DEBUG_MODE
-  //     Serial.println("Bluetooth input:\t" + bluetoothInput);
-  // #endif
+    // #ifdef DEBUG_MODE
+    //     Serial.println("Bluetooth input:\t" + bluetoothInput);
+    // #endif
     if (bluetoothInput.length() != 7) {
       return;
     }
@@ -131,11 +146,11 @@ void readBluetooth() {
       btStrenght = strength.toInt();
     if (isDigit(button))
       btButton = button.toInt();
-  // #ifdef DEBUG_MODE
-  //     Serial.println("Angle\t\t\t" + (String)btAngle);
-  //     Serial.println("Strength\t\t" + (String)btStrenght);
-  //     Serial.println("Button\t\t\t" + (String)btButton);
-  // #endif
+    // #ifdef DEBUG_MODE
+    //     Serial.println("Angle\t\t\t" + (String)btAngle);
+    //     Serial.println("Strength\t\t" + (String)btStrenght);
+    //     Serial.println("Button\t\t\t" + (String)btButton);
+    // #endif
     bluetoothSerial.flush();
     bluetoothInput = "";
   }
@@ -143,14 +158,14 @@ void readBluetooth() {
 void setLeftSpeed() {
   byte dirL = 0;
   int speedL = 0;
-  MotordriverDual(currSpeed, &dirL, &speedL);
+  MotordriverDual(currLeftSideSpeed, &dirL, &speedL);
   digitalWrite(MOTOR_DIR_L_PIN, dirL);
   analogWrite(MOTOR_SPEED_L_PIN, speedL);
 }
 void setRightSpeed() {
   byte dirR = 0;
   int speedR = 0;
-  MotordriverDual(currSpeed, &dirR, &speedR);
+  MotordriverDual(currRightSideSpeed, &dirR, &speedR);
   digitalWrite(MOTOR_DIR_R_PIN, dirR);
   analogWrite(MOTOR_SPEED_R_PIN, speedR);
 
@@ -167,7 +182,7 @@ void MotordriverDual(int speed, byte *realDir, int *realValue) {
   }
 
   // speed = constrain(speed, -255 + DEAD_ZONE, 255 - DEAD_ZONE);
-  speed = constrain(speed, -255, 255);
+  speed = constrain(speed, -SPEED, SPEED);
   if (speed > 0) {
     *realDir = LOW;
     *realValue = speed;

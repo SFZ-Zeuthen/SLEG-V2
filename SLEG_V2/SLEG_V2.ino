@@ -1,3 +1,17 @@
+/* PIN connections
+-------------------------BEERLECADA MOTOR DRIVER DUAL-------------------------
+                      |              Uno              |                   
+GND                   |                               |                GND         
+IN1B PWM_RIGHT yellow | pin 6                         |                VM          
+IN2B DIR_RIGHT green  | pin 4                   pin 7 | green DIR_LEFT IN2A 
+IN1A PWM_LEFT  yellow | pin 5                         |                SBY          
+...
+-------------------------------------------------------------------------------
+
+
+DIR LOW Forward
+DIR HIGH Backwards
+*/
 #include <SoftwareSerial.h>
 
 // #define DEBUG_MODE
@@ -29,11 +43,32 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Los geht's");
   bluetoothSerial.begin(9600);  //38400
+  pinMode(MOTOR_DIR_L_PIN, OUTPUT);
+  pinMode(MOTOR_DIR_R_PIN, OUTPUT);
+  pinMode(MOTOR_SPEED_L_PIN, OUTPUT);
+  pinMode(MOTOR_SPEED_R_PIN, OUTPUT);
 }
 void loop() {
-  readBluetooth();
-  setCurrSpeed();
-  setLeftSpeed();
+  //TEST
+  // motor A (left) forward
+  digitalWrite(MOTOR_DIR_L_PIN, LOW);
+  analogWrite(MOTOR_SPEED_L_PIN, 60);
+  // motor B (right) forward
+  digitalWrite(MOTOR_DIR_R_PIN, LOW);
+  analogWrite(MOTOR_SPEED_R_PIN, 60);
+  delay(5000);
+  // motor A (left) backwards
+  digitalWrite(MOTOR_DIR_L_PIN, HIGH);
+  analogWrite(MOTOR_SPEED_L_PIN, 195);
+  // motor B (right) backwards
+  digitalWrite(MOTOR_DIR_R_PIN, HIGH);
+  analogWrite(MOTOR_SPEED_R_PIN, 195);
+  delay(5000);
+  // end of TEST
+  //readBluetooth();
+  //setCurrSpeed();
+  //setLeftSpeed();
+  //setRightSpeed();
   // setRightSpeed();
 #ifdef DEBUG_MODE
   Serial.println("CurrentSpeed: " + (String)currSpeed);
@@ -45,10 +80,11 @@ void loop() {
 void setCurrSpeed() {
   int x = cos(radians(btAngle)) * btStrenght;  //-100, 100
   int y = sin(radians(btAngle)) * btStrenght;  //-100, 100
-  int forward = y >= 0 ? 1 : 1;
-  currSpeed = round(y * 1.275);  //-128 ... 128
-  currLeftSideSpeed = constrain(currSpeed - (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
-  currRightSideSpeed = constrain(currSpeed + (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
+  // int forward = y >= 0 ? 1 : 1;
+  currSpeed = round(y * 2.55);  //-128 ... 128
+  Serial.println(currSpeed);
+  // currLeftSideSpeed = constrain(currSpeed - (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
+  // currRightSideSpeed = constrain(currSpeed + (x * TURN_SPEED * forward), -MAX_SPEED, MAX_SPEED);
   // Serial.println(currSpeed);
   // if (btAngle > 0 && btAngle < 180) {
   //   Serial.println("TOP");
@@ -102,15 +138,24 @@ void readBluetooth() {
   }
 }
 void setLeftSpeed() {
-  byte dirL = 0;
-  int speedL = 0;
-  MotordriverDual(currSpeed, &dirL, &speedL);
+  //LOW = RÜCKWERTS
+  //HIGH =
+  //GRAU(ROT) = LINKS VORNE
+  //PINK(SCHWARZ) = LINKS VORNE
+
+  //RECHTS HIGH = RÜCKWERTS
+  //RECHTS LOW = VORWÄRTS
+  byte dirL = 1;
+  int speedL = 126;
+  // MotordriverDual(currSpeed, &dirL, &speedL);
+  // digitalWrite(MOTOR_DIR_R_PIN, dirL);
+  // analogWrite(MOTOR_SPEED_R_PIN, speedL);
   digitalWrite(MOTOR_DIR_L_PIN, dirL);
   analogWrite(MOTOR_SPEED_L_PIN, speedL);
 }
 void setRightSpeed() {
   byte dirR = 0;
-  int speedR = 0;
+  int speedR = 128;
   MotordriverDual(currSpeed, &dirR, &speedR);
   digitalWrite(MOTOR_DIR_R_PIN, dirR);
   analogWrite(MOTOR_SPEED_R_PIN, speedR);
@@ -118,6 +163,27 @@ void setRightSpeed() {
   Serial.println(speedR);
 }
 void MotordriverDual(int speed, byte *realDir, int *realValue) {
+  if (realDir == nullptr || realValue == nullptr) {
+    return;
+  }
+  if (speed == 0) {
+    *realDir = LOW;
+    *realValue = 0;
+    return;
+  }
+
+  // speed = constrain(speed, -255 + DEAD_ZONE, 255 - DEAD_ZONE);
+  speed = constrain(speed, -255, 255);
+  if (speed > 0) {
+    *realDir = LOW;
+    *realValue = speed;
+  } else {
+    *realDir = HIGH;
+    *realValue = 255 + speed;
+  }
+  // *realValue = constrain(realValue, 0, 255);
+}
+void MotordriverDualOld(int speed, byte *realDir, int *realValue) {
   if (realDir == nullptr || realValue == nullptr) {
     return;
   }
